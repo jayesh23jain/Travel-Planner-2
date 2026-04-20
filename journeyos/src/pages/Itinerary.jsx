@@ -80,7 +80,7 @@ function DayCard({ day, items, onDeleteItem, onAddItem }) {
   const dayTotal = useMemo(() => items.reduce((s,i) => s + Number(i.cost||0), 0), [items])
 
   return (
-    <motion.div variants={fadeUp} className="rounded-2xl border border-white/10 bg-white/4 backdrop-blur-xl overflow-hidden">
+    <motion.div variants={fadeUp} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
       {/* Day header */}
       <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ function DayCard({ day, items, onDeleteItem, onAddItem }) {
           {dayTotal > 0 && <span className="text-white/40 text-xs">₹{dayTotal.toLocaleString()}</span>}
           <motion.button whileHover={{ scale:1.1 }} whileTap={{ scale:0.9 }}
             onClick={() => setShowForm(v=>!v)}
-            className="w-7 h-7 rounded-lg bg-white/8 hover:bg-white/15 border border-white/10 flex items-center justify-center text-white/60 hover:text-white text-sm transition-all">
+            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white/60 hover:text-white text-sm transition-all">
             {showForm ? '−' : '+'}
           </motion.button>
         </div>
@@ -130,30 +130,30 @@ function DayCard({ day, items, onDeleteItem, onAddItem }) {
                 <div>
                   <label className="text-white/35 text-[10px] font-mono uppercase tracking-wider block mb-1">Title *</label>
                   <input required value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Beach walk"
-                    className="w-full bg-white/8 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
+                    className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
                 </div>
                 <div>
                   <label className="text-white/35 text-[10px] font-mono uppercase tracking-wider block mb-1">Type</label>
                   <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}
-                    className="w-full bg-white/8 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-400/50 transition-all">
+                    className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-400/50 transition-all">
                     {Object.entries(TYPE_META).map(([k,v]) => <option key={k} value={k} className="bg-[#0d0d1a] capitalize">{v.icon} {k}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-white/35 text-[10px] font-mono uppercase tracking-wider block mb-1">Time</label>
                   <input type="time" value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))}
-                    className="w-full bg-white/8 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-400/50 transition-all" />
+                    className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-400/50 transition-all" />
                 </div>
                 <div>
                   <label className="text-white/35 text-[10px] font-mono uppercase tracking-wider block mb-1">Cost (₹)</label>
                   <input type="number" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} placeholder="0"
-                    className="w-full bg-white/8 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
+                    className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
                 </div>
               </div>
               <div>
                 <label className="text-white/35 text-[10px] font-mono uppercase tracking-wider block mb-1">Location</label>
                 <input value={form.location} onChange={e=>setForm(f=>({...f,location:e.target.value}))} placeholder="e.g. Baga Beach"
-                  className="w-full bg-white/8 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
+                  className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
               </div>
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={()=>setShowForm(false)} className="px-4 py-1.5 rounded-lg border border-white/10 text-white/40 text-sm hover:text-white/70 transition-colors">Cancel</button>
@@ -195,33 +195,36 @@ export default function Itinerary() {
     setLoading(true)
 
     try {
-      const q = query(
-        collection(db, 'itinerary'),
-        where('trip_id', '==', activeTrip.id)
-      )
-
-      const unsubscribe = onSnapshot(
-        q,
+      const unsubDays = onSnapshot(
+        query(collection(db, 'itinerary_days'), where('trip_id', '==', activeTrip.id)),
         (snapshot) => {
           if (!isMounted) return
           const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
           data.sort((a, b) => a.day_number - b.day_number)
           setDays(data)
-          setItems(data)
           setLoading(false)
         },
         (error) => {
-          if (!isMounted) return
-          console.error('Error fetching itinerary:', error)
-          setDays([])
-          setItems([])
-          setLoading(false)
+          console.error('Error fetching days:', error)
+          if (isMounted) setLoading(false)
         }
+      )
+
+      const unsubItems = onSnapshot(
+        query(collection(db, 'itinerary_items'), where('trip_id', '==', activeTrip.id)),
+        (snapshot) => {
+          if (!isMounted) return
+          const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+          data.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+          setItems(data)
+        },
+        (error) => console.error('Error fetching items:', error)
       )
 
       return () => {
         isMounted = false
-        unsubscribe()
+        unsubDays()
+        unsubItems()
       }
     } catch (error) {
       if (isMounted) {
@@ -234,24 +237,44 @@ export default function Itinerary() {
   const addDay = async () => {
     if (!activeTrip) return
     setCreatingDay(true)
-    const dayNum = days.length + 1
-    const date = new Date(activeTrip.start_date)
-    date.setDate(date.getDate() + dayNum - 1)
-    const dateStr = date.toISOString().split('T')[0]
-    const { data } = await supabase.from('itinerary_days')
-      .insert({ trip_id: activeTrip.id, day_number: dayNum, date: dateStr }).select().single()
-    if (data) setDays(prev => [...prev, data])
+    try {
+      const dayNum = days.length + 1
+      const date = new Date(activeTrip.start_date)
+      if (!isNaN(date)) {
+        date.setDate(date.getDate() + dayNum - 1)
+      }
+      const dateStr = !isNaN(date) ? date.toISOString().split('T')[0] : `Day ${dayNum}`
+      await addDoc(collection(db, 'itinerary_days'), {
+        trip_id: activeTrip.id,
+        day_number: dayNum,
+        date: dateStr,
+        created_at: new Date()
+      })
+    } catch (e) {
+      console.error(e)
+    }
     setCreatingDay(false)
   }
 
   const addItem = useCallback(async (dayId, itemData) => {
-    const { data } = await supabase.from('itinerary_items').insert({ ...itemData, day_id: dayId }).select().single()
-    if (data) setItems(prev => [...prev, data])
-  }, [])
+    try {
+      await addDoc(collection(db, 'itinerary_items'), { 
+        ...itemData, 
+        day_id: dayId, 
+        trip_id: activeTrip.id,
+        created_at: new Date()
+      })
+    } catch (e) {
+      console.error(e)
+    }
+  }, [activeTrip])
 
   const deleteItem = useCallback(async (id) => {
-    await supabase.from('itinerary_items').delete().eq('id', id)
-    setItems(prev => prev.filter(i => i.id !== id))
+    try {
+      await deleteDoc(doc(db, 'itinerary_items', id))
+    } catch (e) {
+      console.error(e)
+    }
   }, [])
 
   const handleDragEnd = useCallback(async ({ active, over }) => {
@@ -266,9 +289,13 @@ export default function Itinerary() {
     setItems(reordered)
 
     // Persist new sort_order
-    const updates = reordered.map((item, idx) => ({ id: item.id, sort_order: idx }))
-    for (const u of updates) {
-      await supabase.from('itinerary_items').update({ sort_order: u.sort_order }).eq('id', u.id)
+    try {
+      const updates = reordered.map((item, idx) => ({ id: item.id, sort_order: idx }))
+      for (const u of updates) {
+        await updateDoc(doc(db, 'itinerary_items', u.id), { sort_order: u.sort_order })
+      }
+    } catch (e) {
+      console.error(e)
     }
   }, [items])
 

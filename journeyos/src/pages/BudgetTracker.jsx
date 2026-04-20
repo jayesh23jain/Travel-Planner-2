@@ -189,24 +189,24 @@ export default function BudgetTracker() {
                       <div>
                         <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider block mb-1.5">Title</label>
                         <input required value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}
-                          placeholder="e.g. Dinner" className="w-full bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition-all" />
+                          placeholder="e.g. Dinner" className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition-all" />
                       </div>
                       <div>
                         <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider block mb-1.5">Amount (₹)</label>
                         <input required type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}
-                          placeholder="500" className="w-full bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition-all" />
+                          placeholder="500" className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-amber-400/50 transition-all" />
                       </div>
                       <div>
                         <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider block mb-1.5">Category</label>
                         <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}
-                          className="w-full bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/50 transition-all capitalize">
+                          className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/50 transition-all capitalize">
                           {CATEGORIES.map(c => <option key={c} value={c} className="bg-[#0d0d1a]">{CAT_ICONS[c]} {c}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-white/40 text-[10px] font-mono uppercase tracking-wider block mb-1.5">Date</label>
                         <input type="date" value={form.paid_at} onChange={e=>setForm(f=>({...f,paid_at:e.target.value}))}
-                          className="w-full bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/50 transition-all" />
+                          className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400/50 transition-all" />
                       </div>
                       <div className="sm:col-span-2 lg:col-span-4 flex gap-3 justify-end">
                         <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2 rounded-xl border border-white/10 text-white/50 text-sm hover:text-white/80 transition-colors">Cancel</button>
@@ -243,7 +243,7 @@ export default function BudgetTracker() {
                 <span className="text-white/50">Budget utilisation</span>
                 <span className={summary.isOverBudget ? 'text-rose-400 font-bold' : 'text-white/70'}>{summary.burnPct}%</span>
               </div>
-              <div className="h-3 bg-white/8 rounded-full overflow-hidden">
+              <div className="h-3 bg-white/10 rounded-full overflow-hidden">
                 <motion.div className={`h-full rounded-full ${summary.burnPct > 80
                   ? 'bg-gradient-to-r from-amber-500 to-rose-500'
                   : 'bg-gradient-to-r from-amber-400 to-orange-400'}`}
@@ -326,7 +326,7 @@ export default function BudgetTracker() {
                             <span className="text-white/60 capitalize">{CAT_ICONS[name]} {name}</span>
                             <span className="text-white/80">₹{value.toLocaleString()} ({pct.toFixed(0)}%)</span>
                           </div>
-                          <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                             <motion.div style={{ background: CAT_COLORS[name] || '#94a3b8' }}
                               className="h-full rounded-full"
                               initial={{ width:0 }} animate={{ width:`${pct}%` }}

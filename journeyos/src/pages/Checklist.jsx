@@ -56,7 +56,7 @@ function CheckItem({ item, onToggle, onDelete }) {
 function DocVaultItem({ doc, onDelete }) {
   return (
     <motion.div variants={fadeUp} layout
-      className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/4 border border-white/8 hover:bg-white/8 transition-all group">
+      className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/10 transition-all group">
       <div className="w-9 h-9 rounded-lg bg-rose-500/15 border border-rose-400/25 flex items-center justify-center text-base shrink-0">
         📄
       </div>
@@ -312,7 +312,7 @@ export default function Checklist() {
                     <p className="text-white font-semibold">Packing Progress</p>
                     <p className="text-white/50 text-sm">{checkedCount} / {items.length} items</p>
                   </div>
-                  <div className="h-2 bg-white/8 rounded-full overflow-hidden">
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <motion.div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
                       initial={{ width:0 }} animate={{ width:`${progress}%` }}
                       transition={{ duration:1, ease:'easeOut' }} />
@@ -409,7 +409,7 @@ export default function Checklist() {
                   />
                   <input value={docLabel} onChange={e=>setDocLabel(e.target.value)}
                     placeholder="Document label (e.g. Passport, Flight Ticket)"
-                    className="w-full bg-white/8 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
+                    className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-violet-400/50 transition-all" />
 
                   {/* Custom drop zone — triggered by useRef */}
                   <motion.div

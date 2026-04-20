@@ -199,8 +199,8 @@ export default function InTripRadar() {
                       Array.from({ length:4 }).map((_,i) => (
                         <motion.div key={i} className="rounded-xl border border-white/8 bg-white/5 p-4 space-y-2 animate-pulse">
                           <div className="h-4 bg-white/10 rounded w-3/4" />
-                          <div className="h-3 bg-white/8 rounded w-1/2" />
-                          <div className="h-3 bg-white/8 rounded w-2/3" />
+                          <div className="h-3 bg-white/10 rounded w-1/2" />
+                          <div className="h-3 bg-white/10 rounded w-2/3" />
                         </motion.div>
                       ))
                     ) : (

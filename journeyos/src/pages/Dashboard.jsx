@@ -121,7 +121,7 @@ function TripPill({ trip, isActive, onClick }) {
       className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap
         ${isActive
           ? 'bg-cyan-400/20 border-cyan-400/50 text-cyan-300'
-          : 'bg-white/5 border-white/10 text-white/45 hover:text-white/75 hover:bg-white/8'}`}>
+          : 'bg-white/5 border-white/10 text-white/45 hover:text-white/75 hover:bg-white/10'}`}>
       {trip.destination}
     </motion.button>
   )
@@ -264,7 +264,7 @@ export default function Dashboard() {
                       <label className="text-white/40 text-xs font-mono uppercase tracking-wider block mb-1.5">{label}</label>
                       <input type={type} required value={newTrip[key]} placeholder={placeholder}
                         onChange={e => setNewTrip(f => ({ ...f, [key]: e.target.value }))}
-                        className="w-full bg-white/8 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm
+                        className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm
                                    placeholder-white/20 focus:outline-none focus:border-cyan-400/50 transition-all" />
                     </div>
                   ))}

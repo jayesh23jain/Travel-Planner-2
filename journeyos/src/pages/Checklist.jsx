@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTrip } from '../context/TripContext'
 import { useTripAuth } from '../hooks/useTripAuth'
 import { db, storage } from '../lib/supabaseClient'
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, writeBatch } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const CATEGORIES = ['clothing','documents','toiletries','electronics','medicine','other']
@@ -88,6 +88,7 @@ export default function Checklist() {
   const [uploading, setUploading] = useState(false)
   const [weatherMode, setWeatherMode] = useState(null)
   const [adding, setAdding]     = useState(false)
+  const [weatherProcessing, setWeatherProcessing] = useState(false)
 
   // useRef for custom file input UI — satisfies rubric requirement
   const fileInputRef = useRef(null)
@@ -144,7 +145,7 @@ export default function Checklist() {
 
   const addItem = async (e) => {
     e?.preventDefault()
-    if (!newItem.trim() || !activeTrip) return
+    if (!newItem.trim() || !activeTrip || adding) return
     setAdding(true)
     try {
       const docRef = await addDoc(collection(db, 'checklist_items'), {
@@ -155,8 +156,9 @@ export default function Checklist() {
         is_auto: false,
         created_at: new Date()
       })
-      setItems(prev => [...prev, { id: docRef.id, label: newItem.trim(), category: newCat, trip_id: activeTrip.id, is_checked: false, is_auto: false }])
+      // Let onSnapshot handle state updates to prevent duplicates
       setNewItem('')
+      setNewCat('other') // Reset the category dropdown so subsequent items don't accidentally fall into the previous pick
     } catch (error) {
       console.error('Error adding item:', error)
     }
@@ -182,37 +184,51 @@ export default function Checklist() {
   }
 
   const addWeatherItems = async (mode) => {
-    if (!activeTrip) return
-    setWeatherMode(mode)
-    const suggestions = WEATHER_SUGGESTIONS[mode] || []
-    const existing = items.map(i => i.label)
-    const newSuggestions = suggestions.filter(s => !existing.includes(s))
-
-    if (newSuggestions.length === 0) return
+    if (!activeTrip || weatherProcessing) return
+    setWeatherProcessing(true)
 
     try {
-      const batch = newSuggestions.map(label => 
-        addDoc(collection(db, 'checklist_items'), {
-          label,
-          category: 'clothing',
-          trip_id: activeTrip.id,
-          is_checked: false,
-          is_auto: true,
-          created_at: new Date()
+      const batch = writeBatch(db)
+
+      // Find and remove existing auto-added items to prevent accumulation
+      const oldAutoItems = items.filter(i => i.is_auto)
+      oldAutoItems.forEach(item => {
+        batch.delete(doc(db, 'checklist_items', item.id))
+      })
+
+      // If clicking the active mode, toggle it off
+      if (weatherMode === mode) {
+        setWeatherMode(null)
+        await batch.commit()
+        setWeatherProcessing(false) // release the processing lock
+        return
+      }
+
+      setWeatherMode(mode)
+      const suggestions = WEATHER_SUGGESTIONS[mode] || []
+      const existingManual = items.filter(i => !i.is_auto).map(i => i.label.toLowerCase())
+      const newSuggestions = suggestions.filter(s => !existingManual.includes(s.toLowerCase()))
+
+      if (newSuggestions.length > 0) {
+        newSuggestions.forEach(label => {
+          const newDocRef = doc(collection(db, 'checklist_items'))
+          batch.set(newDocRef, {
+            label,
+            category: 'clothing', // Default to clothing as most suggestions are
+            trip_id: activeTrip.id,
+            is_checked: false,
+            is_auto: true,
+            created_at: new Date()
+          })
         })
-      )
-      const results = await Promise.all(batch)
-      const newItems = newSuggestions.map((label, i) => ({
-        id: results[i].id,
-        label,
-        category: 'clothing',
-        trip_id: activeTrip.id,
-        is_checked: false,
-        is_auto: true
-      }))
-      setItems(prev => [...prev, ...newItems])
+      }
+      
+      await batch.commit()
+
+      setWeatherProcessing(false)
     } catch (error) {
-      console.error('Error adding weather items:', error)
+      console.error('Error handling weather items:', error)
+      setWeatherProcessing(false)
     }
   }
 
@@ -332,7 +348,8 @@ export default function Checklist() {
                     {[['hot','☀️ Hot'],['cold','❄️ Cold'],['rainy','🌧️ Rainy'],['beach','🏖️ Beach']].map(([mode, label]) => (
                       <motion.button key={mode} whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
                         onClick={() => addWeatherItems(mode)}
-                        className={`px-4 py-2 rounded-full text-sm border transition-all
+                        disabled={weatherProcessing}
+                        className={`px-4 py-2 rounded-full text-sm border transition-all ${weatherProcessing ? 'opacity-50 cursor-wait' : ''}
                           ${weatherMode===mode ? 'bg-amber-400/20 border-amber-400/50 text-amber-300' : 'border-white/10 text-white/50 hover:border-amber-400/30 hover:text-amber-300'}`}>
                         {label}
                       </motion.button>

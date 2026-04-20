@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTrip } from '../context/TripContext'
 import { useTripAuth } from '../hooks/useTripAuth'
@@ -47,7 +47,7 @@ function CheckItem({ item, onToggle, onDelete }) {
       {item.is_auto && (
         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25 text-amber-300">AI</span>
       )}
-      <button onClick={() => onDelete(item.id)}
+      <button onClick={() => onDelete(item)}
         className="opacity-0 group-hover:opacity-100 text-rose-400/50 hover:text-rose-400 text-xs transition-all">✕</button>
     </motion.div>
   )
@@ -78,24 +78,43 @@ function DocVaultItem({ doc, onDelete }) {
 export default function Checklist() {
   useTripAuth()
   const { activeTrip } = useTrip()
-  const [items, setItems]       = useState([])
-  const [docs, setDocs]         = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [newItem, setNewItem]   = useState('')
-  const [newCat, setNewCat]     = useState('other')
-  const [activeTab, setActiveTab] = useState('checklist')
-  const [docLabel, setDocLabel] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [weatherMode, setWeatherMode] = useState(null)
-  const [adding, setAdding]     = useState(false)
+  const [persistentItems, setPersistentItems] = useState([]) // From checklist_items
+  const [customItems, setCustomItems]         = useState([]) // From custom_checklist_items
+  const [suggestedItems, setSuggestedItems]   = useState([]) // Local state weather hints
+  const [docs, setDocs]                       = useState([])
+  const [loading, setLoading]                 = useState(false)
+  const [newItem, setNewItem]                 = useState('')
+  const [newCat, setNewCat]                   = useState('other')
+  const [activeTab, setActiveTab]             = useState('checklist')
+  const [docLabel, setDocLabel]               = useState('')
+  const [uploading, setUploading]             = useState(false)
+  const [weatherMode, setWeatherMode]         = useState(null)
+  const [adding, setAdding]                   = useState(false)
   const [weatherProcessing, setWeatherProcessing] = useState(false)
 
-  // useRef for custom file input UI — satisfies rubric requirement
   const fileInputRef = useRef(null)
+
+  // Merged items list for the UI
+  const items = useMemo(() => {
+    // Flag persistentItems as 'packed' and customItems as 'custom'
+    const packed = persistentItems.map(i => ({ ...i, origin: 'packed', is_auto: true }))
+    const custom = customItems.map(i => ({ ...i, origin: 'custom', is_auto: false }))
+    const suggestions = suggestedItems.map((label, idx) => ({
+      id: `suggest-${idx}`,
+      label,
+      category: 'clothing',
+      is_checked: false,
+      is_auto: true,
+      origin: 'suggestion'
+    }))
+    
+    return [...packed, ...custom, ...suggestions]
+  }, [persistentItems, customItems, suggestedItems])
 
   useEffect(() => {
     if (!activeTrip) {
-      setItems([])
+      setPersistentItems([])
+      setCustomItems([])
       setDocs([])
       return
     }
@@ -104,15 +123,25 @@ export default function Checklist() {
     setLoading(true)
 
     try {
-      const unsubscribeItems = onSnapshot(
+      const unsubscribePacked = onSnapshot(
         query(collection(db, 'checklist_items'), where('trip_id', '==', activeTrip.id)),
         (cSnap) => {
           if (!isMounted) return
-          setItems(cSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+          setPersistentItems(cSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        },
+        (error) => console.error('Error listening to checklist items:', error)
+      )
+
+      const unsubscribeCustom = onSnapshot(
+        query(collection(db, 'custom_checklist_items'), where('trip_id', '==', activeTrip.id)),
+        (cSnap) => {
+          if (!isMounted) return
+          setCustomItems(cSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+          setLoading(false)
         },
         (error) => {
-          if (!isMounted) return
-          console.error('Error listening to checklist items:', error)
+          console.error('Error listening to custom items:', error)
+          setLoading(false)
         }
       )
 
@@ -121,23 +150,19 @@ export default function Checklist() {
         (dSnap) => {
           if (!isMounted) return
           setDocs(dSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-          setLoading(false)
         },
-        (error) => {
-          if (!isMounted) return
-          console.error('Error listening to documents:', error)
-          setLoading(false)
-        }
+        (error) => console.error('Error listening to documents:', error)
       )
 
       return () => {
         isMounted = false
-        unsubscribeItems()
+        unsubscribePacked()
+        unsubscribeCustom()
         unsubscribeDocs()
       }
     } catch (error) {
       if (isMounted) {
-        console.error('Error setting up checklist listener:', error)
+        console.error('Error setting up listeners:', error)
         setLoading(false)
       }
     }
@@ -148,88 +173,81 @@ export default function Checklist() {
     if (!newItem.trim() || !activeTrip || adding) return
     setAdding(true)
     try {
-      const docRef = await addDoc(collection(db, 'checklist_items'), {
+      await addDoc(collection(db, 'custom_checklist_items'), {
         label: newItem.trim(),
         category: newCat,
         trip_id: activeTrip.id,
         is_checked: false,
-        is_auto: false,
-        created_at: new Date()
+        created_at: new Date().toISOString()
       })
-      // Let onSnapshot handle state updates to prevent duplicates
       setNewItem('')
-      setNewCat('other') // Reset the category dropdown so subsequent items don't accidentally fall into the previous pick
+      setNewCat('other')
     } catch (error) {
-      console.error('Error adding item:', error)
+      console.error('Error adding custom item:', error)
     }
     setAdding(false)
   }
 
   const toggleItem = async (item) => {
     try {
-      await updateDoc(doc(db, 'checklist_items', item.id), { is_checked: !item.is_checked })
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_checked: !i.is_checked } : i))
+      if (item.origin === 'suggestion') {
+        // Move from local suggestions to DB as 'packed'
+        await addDoc(collection(db, 'checklist_items'), {
+          label: item.label,
+          category: item.category,
+          trip_id: activeTrip.id,
+          is_checked: true,
+          is_suggestion: true,
+          created_at: new Date().toISOString()
+        })
+        setSuggestedItems(prev => prev.filter(l => l !== item.label))
+      } else if (item.origin === 'custom') {
+        await updateDoc(doc(db, 'custom_checklist_items', item.id), { is_checked: !item.is_checked })
+      } else if (item.origin === 'packed') {
+        if (item.is_suggestion && item.is_checked) {
+          // Unpacking a suggestion -> remove from DB, return to local list
+          await deleteDoc(doc(db, 'checklist_items', item.id))
+          setSuggestedItems(prev => [...prev, item.label])
+        } else {
+          await updateDoc(doc(db, 'checklist_items', item.id), { is_checked: !item.is_checked })
+        }
+      }
     } catch (error) {
       console.error('Error toggling item:', error)
     }
   }
 
-  const deleteItem = async (id) => {
+  const deleteItem = async (item) => {
     try {
-      await deleteDoc(doc(db, 'checklist_items', id))
-      setItems(prev => prev.filter(i => i.id !== id))
+      if (item.origin === 'suggestion') {
+        setSuggestedItems(prev => prev.filter(l => l !== item.label))
+      } else if (item.origin === 'custom') {
+        await deleteDoc(doc(db, 'custom_checklist_items', item.id))
+      } else if (item.origin === 'packed') {
+        await deleteDoc(doc(db, 'checklist_items', item.id))
+      }
     } catch (error) {
       console.error('Error deleting item:', error)
     }
   }
 
-  const addWeatherItems = async (mode) => {
-    if (!activeTrip || weatherProcessing) return
-    setWeatherProcessing(true)
-
-    try {
-      const batch = writeBatch(db)
-
-      // Find and remove existing auto-added items to prevent accumulation
-      const oldAutoItems = items.filter(i => i.is_auto)
-      oldAutoItems.forEach(item => {
-        batch.delete(doc(db, 'checklist_items', item.id))
-      })
-
-      // If clicking the active mode, toggle it off
-      if (weatherMode === mode) {
-        setWeatherMode(null)
-        await batch.commit()
-        setWeatherProcessing(false) // release the processing lock
-        return
-      }
-
-      setWeatherMode(mode)
-      const suggestions = WEATHER_SUGGESTIONS[mode] || []
-      const existingManual = items.filter(i => !i.is_auto).map(i => i.label.toLowerCase())
-      const newSuggestions = suggestions.filter(s => !existingManual.includes(s.toLowerCase()))
-
-      if (newSuggestions.length > 0) {
-        newSuggestions.forEach(label => {
-          const newDocRef = doc(collection(db, 'checklist_items'))
-          batch.set(newDocRef, {
-            label,
-            category: 'clothing', // Default to clothing as most suggestions are
-            trip_id: activeTrip.id,
-            is_checked: false,
-            is_auto: true,
-            created_at: new Date()
-          })
-        })
-      }
-      
-      await batch.commit()
-
-      setWeatherProcessing(false)
-    } catch (error) {
-      console.error('Error handling weather items:', error)
-      setWeatherProcessing(false)
+  const addWeatherItems = (mode) => {
+    if (!activeTrip) return
+    
+    if (weatherMode === mode) {
+      setWeatherMode(null)
+      setSuggestedItems([])
+      return
     }
+
+    setWeatherMode(mode)
+    const suggestions = WEATHER_SUGGESTIONS[mode] || []
+    
+    // Filter out items already in DB
+    const existingLabels = [...persistentItems, ...customItems].map(i => i.label.toLowerCase())
+    const newSuggestions = suggestions.filter(s => !existingLabels.includes(s.toLowerCase()))
+    
+    setSuggestedItems(newSuggestions)
   }
 
   const handleFileUpload = async (file) => {
@@ -242,7 +260,7 @@ export default function Checklist() {
       await uploadBytes(storageRef, file)
       const url = await getDownloadURL(storageRef)
 
-      const docRef = await addDoc(collection(db, 'documents'), {
+      await addDoc(collection(db, 'documents'), {
         trip_id: activeTrip.id,
         user_id: activeTrip.user_id,
         filename: file.name,
@@ -251,10 +269,9 @@ export default function Checklist() {
         file_size: file.size,
         label: docLabel || file.name,
         url,
-        uploaded_at: new Date()
+        uploaded_at: new Date().toISOString()
       })
 
-      setDocs(prev => [{ id: docRef.id, ...{trip_id: activeTrip.id, user_id: activeTrip.user_id, filename: file.name, storage_path: path, file_type: file.type, file_size: file.size, label: docLabel || file.name, url} }, ...prev])
       setDocLabel('')
     } catch (error) {
       console.error('Error uploading file:', error)
@@ -262,10 +279,9 @@ export default function Checklist() {
     setUploading(false)
   }
 
-  const deleteDoc = async (id) => {
+  const deleteDocument = async (id) => {
     try {
       await deleteDoc(doc(db, 'documents', id))
-      setDocs(prev => prev.filter(d => d.id !== id))
     } catch (error) {
       console.error('Error deleting document:', error)
     }
@@ -343,7 +359,7 @@ export default function Checklist() {
                 {/* Weather suggestions */}
                 <motion.div variants={fadeUp} className="rounded-2xl border border-amber-400/20 bg-amber-500/5 backdrop-blur-xl p-5">
                   <p className="text-white/60 text-sm font-semibold mb-3">🌤️ Weather-Aware Suggestions</p>
-                  <p className="text-white/35 text-xs mb-4">Select destination weather to auto-add packing items</p>
+                  <p className="text-white/35 text-xs mb-4">Select destination weather to see packing hints (Hints only save when checked)</p>
                   <div className="flex flex-wrap gap-2">
                     {[['hot','☀️ Hot'],['cold','❄️ Cold'],['rainy','🌧️ Rainy'],['beach','🏖️ Beach']].map(([mode, label]) => (
                       <motion.button key={mode} whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
@@ -394,7 +410,7 @@ export default function Checklist() {
                               {catItems.filter(i=>i.is_checked).length}/{catItems.length}
                             </span>
                           </div>
-                          <AnimatePresence>
+                          <AnimatePresence mode="popLayout">
                             {catItems.map(item => (
                               <CheckItem key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem} />
                             ))}
@@ -465,7 +481,7 @@ export default function Checklist() {
                   ) : (
                     <div className="p-4 space-y-2">
                       <AnimatePresence>
-                        {docs.map(doc => <DocVaultItem key={doc.id} doc={doc} onDelete={deleteDoc} />)}
+                        {docs.map(doc => <DocVaultItem key={doc.id} doc={doc} onDelete={deleteDocument} />)}
                       </AnimatePresence>
                     </div>
                   )}

@@ -174,8 +174,10 @@ export default function Dashboard() {
 
   const daysUntil = useMemo(() => {
     if (!activeTrip?.start_date || isNaN(new Date(activeTrip.start_date))) return null
-    return Math.max(0, Math.ceil((new Date(activeTrip.start_date) - new Date()) / 86400000))
-  }, [activeTrip])
+    // Use the 'time' state we already have updating every minute to make the countdown live
+    const diff = new Date(activeTrip.start_date).getTime() - time.getTime()
+    return Math.max(0, Math.ceil(diff / 86400000))
+  }, [activeTrip, time])
 
   const duration = useMemo(() => {
     if (!activeTrip?.start_date || !activeTrip?.end_date || isNaN(new Date(activeTrip.start_date)) || isNaN(new Date(activeTrip.end_date))) return null

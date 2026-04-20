@@ -1,0 +1,1 @@
+import{c as e,r as t}from"./jsx-runtime-CQ1_AR_W.js";import{M as n,l as r}from"./proxy-2aa70k6C.js";var i=e(t(),1);function a(e=`/login`){let{user:t,profile:a,loading:o}=r(),s=n();return(0,i.useEffect)(()=>{!o&&!t&&s(e,{replace:!0})},[t,o,s,e]),{user:t,profile:a,loading:o}}export{a as t};
